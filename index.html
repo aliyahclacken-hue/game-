@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Bubble Wheel Arcade</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;touch-action:none;background:#071326;color:#fff;font-family:Arial,sans-serif}body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}button{font:inherit;color:#fff;background:#174ea6;border:3px solid #fff;border-radius:14px;min-height:58px;padding:10px 15px;font-weight:700}#app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px;position:relative}h1{font-size:clamp(28px,8vw,46px);margin:0 0 8px}#mode{font-size:clamp(22px,6vw,34px);font-weight:800;margin:6px}#status{font-size:clamp(17px,4.7vw,25px);line-height:1.3;min-height:3em;max-width:760px}#score{font-size:clamp(18px,5vw,27px);font-weight:700;min-height:1.5em}#wheel{width:min(65vw,340px);aspect-ratio:1;border:10px solid #fff;border-radius:50%;display:grid;place-items:center;margin:10px;background:conic-gradient(#ff5f6d 0 30deg,#ffc371 30deg 60deg,#49dcb1 60deg 90deg,#4e9cff 90deg 120deg,#a66cff 120deg 150deg,#ff72c6 150deg 180deg,#48d1cc 180deg 210deg,#f5a623 210deg 240deg,#7ed321 240deg 270deg,#d66cff 270deg 300deg,#ef476f 300deg 330deg,#06d6a0 330deg 360deg);transition:transform 5s cubic-bezier(.12,.72,.18,1);box-shadow:0 0 30px #ffffff38}#wheel span{width:46%;aspect-ratio:1;border:5px solid #fff;border-radius:50%;background:#071326;display:grid;place-items:center;font-size:clamp(16px,4.8vw,24px);font-weight:900}.row{display:flex;gap:10px;width:min(96vw,560px);margin-top:10px}.row button{flex:1}#playfield{position:absolute;inset:0;display:none}.zone{position:absolute;top:0;bottom:0;width:33.333%;border:0;background:transparent;color:transparent}.left{left:0}.centre{left:33.333%}.right{right:0}#bubble{position:absolute;width:86px;height:86px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 30% 25%,#fff,rgba(104,220,255,.9) 18%,rgba(91,131,255,.35) 58%,rgba(255,255,255,.15));border:3px solid #ffffffdd;box-shadow:0 0 24px #77e2ff;pointer-events:none}#topButtons{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));display:none;gap:8px;z-index:10}#topButtons button{flex:1;min-height:52px;font-size:17px}#exit{background:#8b1e2d}#scanner{background:#5b3a9b}#repeat{background:#176b52}#instructions{font-size:16px;line-height:1.35;max-width:720px;margin-top:8px}.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topButtons"><button id="exit">Exit</button><button id="scanner">Scanner: Off</button><button id="repeat">Repeat</button></div>
+  <h1>Bubble Wheel Arcade</h1>
+  <div id="wheel"><span>DOUBLE TAP</span></div>
+  <div id="mode">Wheel hub</div>
+  <div id="status">Press Start sound once.</div>
+  <div id="score"></div>
+  <div class="row" id="hubButtons"><button id="start">Start sound</button><button id="scannerHub">Scanner: Off</button></div>
+  <div id="instructions">At the wheel, double tap the middle. In bubble games, drag left or right to walk and release to stop. When you think you are beside a bubble, tap the middle to pop it. Double tap the middle to jump for a high bubble. If the optional scanner is on, it beeps faster as you get closer and slower as you move away.</div>
+  <div id="playfield"><button class="zone left" data-side="0">Left</button><button class="zone centre" data-side="1">Centre</button><button class="zone right" data-side="2">Right</button><div id="bubble" hidden></div></div>
+</div>
+<script>
+'use strict';
+const FILES={pop:'universfield-bubble-pop-293342.mp3',music:'ncone-soft-piano-loop-192098.mp3',wheel:'wheel-spin.mp3',jump:'bestuploadsever67aryan-jump-sound-531048.mp3',walk:'freesoundsxx-walking-on-concrete-ver-2-268513.mp3',door:'soundreality-open-and-closed-door-reverb-206833.mp3',cash:'dragon-studio-cash-register-kaching-376867.mp3',beep:'cartoon-music-game-sfx-cash-register-scanner-single-beep-494483.mp3'};
+const GAMES=[
+['fast','Fastest Beep','Tap when the beeps are at their fastest.'],['slow','Slowest Beep','Tap when the beeps are at their slowest.'],['reverse','Reverse Beep','The beeps begin fast and slow down. Tap at the slowest point.'],['randombeep','Random Beep','Tap after the quickest pair of beeps.'],['doublebeep','Double Beep','Wait for two quick beeps, then tap.'],['triplebeep','Triple Beep','Wait for three quick beeps, then tap.'],['beepcount','Beep Count','Count five beeps, then tap.'],['speedshift','Speed Shift','Tap just after the beep speed suddenly changes.'],['quietgap','Quiet Gap','Tap during the longest quiet gap.'],['beepburst','Beep Burst','Tap immediately after the short burst ends.'],
+['rush','Bubble Rush','Pop as many bubbles as you can in thirty seconds.'],['blitz','Bubble Blitz','Pop fifty bubbles as quickly as you can.'],['storm','Bubble Storm','Pop twenty bubbles while they move quickly.'],['sprint','Bubble Sprint','Pop ten bubbles as fast as possible.'],['survivor','Bubble Survivor','Keep popping. Three misses end the game.'],['explorer','Bubble Explorer','Walk around and pop twenty hidden bubbles.'],['collector','Bubble Collector','Pop every bubble in the area.'],['climber','Bubble Climber','Bubbles rise higher. Jump to pop them.'],['pairs','Bubble Pairs','Pop bubbles in pairs before the next pair appears.'],['relax','Relaxed Bubbles','Pop bubbles at your own pace. There is no timer.'],['precision','Precision Pop','Walk very close to each bubble before you pop it.'],['wander','Wandering Bubble','Track a bubble that keeps drifting left and right.'],['risingrush','Rising Rush','Pop fifteen bubbles high in the air.'],['doublepop','Double Pop','Pop twelve pairs of bubbles.'],['endurance','Bubble Endurance','Keep popping bubbles for forty five seconds.'],['quickten','Quick Ten','Pop ten bubbles as quickly as possible.'],['bubbleladder','Bubble Ladder','Each bubble appears a little higher.'],['zenwalk','Zen Walk','Walk, listen and pop thirty bubbles with no timer.'],['leftlane','Left Lane','Pop bubbles that mostly appear on the left.'],['rightlane','Right Lane','Pop bubbles that mostly appear on the right.'],['centrepops','Centre Pops','Pop bubbles gathered near the centre.'],['lowbubbles','Low Bubbles','Pop twenty low bubbles without jumping.'],['highbubbles','High Bubbles','Jump to pop fifteen high bubbles.'],['movingten','Moving Ten','Track and pop ten moving bubbles.'],['bubblewave','Bubble Wave','Pop three waves of bubbles.'],['bubbleminute','Bubble Minute','Pop as many bubbles as possible in one minute.'],['tinytarget','Tiny Target','Get especially close before trying to pop.'],['farandnear','Far and Near','Bubbles alternate between far away and nearby.'],['sidechange','Side Change','Every new bubble appears on the opposite side.'],['popathon','Popathon','Pop one hundred bubbles with no timer.'],['calmten','Calm Ten','Pop ten bubbles slowly with no timer.'],['speedtwenty','Speed Twenty','Pop twenty bubbles against the clock.'],['driftchallenge','Drift Challenge','Track bubbles that drift more quickly.'],['skyline','Bubble Skyline','Most bubbles float high above you.'],['groundline','Ground Bubbles','All bubbles stay low to the ground.'],['onebyone','One by One','Find and pop twenty single bubbles.'],['bubblejourney','Bubble Journey','Travel across the play area popping thirty bubbles.'],
+['highjump','High Jump','Double tap and hold the second tap, then release.'],['longjump','Long Jump','Charge one jump for as long as you can.'],['jumpmarathon','Jump Marathon','Make ten successful jumps.'],['jumpchain','Jump Chain','Link as many jumps as you can in twenty seconds.'],['landing','Perfect Landing','Jump when the beep reaches the centre.'],['fivejumps','Five Jumps','Complete five charged jumps.'],['quickjumps','Quick Jumps','Make as many jumps as possible in fifteen seconds.'],['steadyjump','Steady Jump','Try to make three jumps of similar height.'],['jumpbuilder','Jump Builder','Make each jump higher than the one before.'],['smalljump','Small Jump','Release quickly to make the smallest jump you can.'],
+['coinchase','Coin Chase','Pop fifteen bubbles and find hidden coins.'],['coinshower','Coin Shower','Collect as many coin bubbles as you can.'],['treasure','Treasure Hunt','Find the one bubble containing treasure.'],['jackpot','Jackpot','Every bubble gives a coin for twenty seconds.'],['bigreward','Big Reward','Pop ten bubbles to win the reward.'],['coinblitz','Coin Blitz','Find as many coin bubbles as you can in twenty seconds.'],['luckyfive','Lucky Five','Find five lucky coin bubbles hidden among normal bubbles.'],['coinminute','Coin Minute','Collect as many coins as possible in one minute.'],['goldentwenty','Golden Twenty','Pop twenty bubbles and collect every coin you find.'],['hiddenjackpot','Hidden Jackpot','Find the jackpot bubble among fifteen bubbles.'],['coinladder','Coin Ladder','Coin chances increase with every bubble.'],['quickcoins','Quick Coins','Find three coins as quickly as possible.'],
+['memory','Bubble Memory','Listen to a left, centre and right pattern, then repeat it.'],['sequence','Bubble Sequence','Repeat an increasingly long direction pattern.'],['leftright','Left or Right','Remember the last side and tap it again.'],['directionmemory','Direction Memory','Repeat four directions in the correct order.'],['memoryfive','Memory Five','Repeat a five-direction pattern.'],['memorysix','Memory Six','Repeat a six-direction pattern.'],['opposites','Opposite Side','Hear a side, then tap the opposite side.'],['repeatpair','Repeat the Pair','Remember and repeat two directions.'],['centrememory','Centre Memory','Listen for where centre appears in the pattern.'],['growingmemory','Growing Memory','The pattern grows after every correct round.'],
+['mystery','Mystery Mode','Listen carefully. The challenge is a surprise.'],['mysteryrush','Mystery Rush','A surprise bubble challenge begins immediately.'],['mysterycoins','Mystery Coins','A surprise coin challenge begins immediately.'],['mysteryjump','Mystery Jump','A surprise jumping challenge begins immediately.']
+].map(([id,name,instruction])=>({id,name,instruction}));
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const wheel=$('#wheel'),mode=$('#mode'),status=$('#status'),scoreEl=$('#score'),playfield=$('#playfield'),bubble=$('#bubble'),topButtons=$('#topButtons'),hubButtons=$('#hubButtons'),startBtn=$('#start'),scannerHub=$('#scannerHub'),scannerBtn=$('#scanner'),repeatBtn=$('#repeat');
+let ac=null,buffers={},music=null,walkSource=null,scannerOn=false,current=null,busy=false,target=null,playerPos=50,score=0,popped=0,misses=0,goal=0,endAt=0,timers=[],lastTap=0,holdStart=0,lastInstruction=null,pattern=[],patternInput=[],patternRound=0,scannerTimer=null,bubbleMoveTimer=null,luckyFound=0,pairProgress=0;
+function t(fn,ms){const id=setTimeout(fn,ms);timers.push(id);return id}function clearAll(){timers.forEach(clearTimeout);timers=[];stopWalk();if(scannerTimer){clearTimeout(scannerTimer);scannerTimer=null}if(bubbleMoveTimer){clearTimeout(bubbleMoveTimer);bubbleMoveTimer=null}}
+async function initAudio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();if(Object.keys(buffers).length)return;for(const [k,u] of Object.entries(FILES)){try{const r=await fetch(u);if(!r.ok)throw Error(r.status);buffers[k]=await ac.decodeAudioData(await r.arrayBuffer())}catch(e){console.error('load',u,e)}}music=new Audio(FILES.music);music.loop=true;music.volume=.13;music.play().catch(()=>{});}
+function play(k,{pan=0,rate=1,volume=1}={}){if(!ac||!buffers[k])return null;const s=ac.createBufferSource(),g=ac.createGain(),p=ac.createStereoPanner();s.buffer=buffers[k];s.playbackRate.value=rate;g.gain.value=volume;p.pan.value=pan;s.connect(g).connect(p).connect(ac.destination);s.start();return s}
+function startWalk(pan){
+  if(walkSource)return;
+  if(!ac||!buffers.walk)return;
+  const s=ac.createBufferSource(),g=ac.createGain(),p=ac.createStereoPanner();
+  s.buffer=buffers.walk;s.loop=true;s.playbackRate.value=1.08;g.gain.value=.48;p.pan.value=pan;
+  s.connect(g).connect(p).connect(ac.destination);s.start();
+  s._panner=p;walkSource=s;
+}
+function updateWalkPan(pan){if(walkSource&&walkSource._panner)walkSource._panner.pan.value=pan}
+function stopWalk(){if(walkSource){try{walkSource.stop()}catch{}walkSource=null}}
+function voice(){const vs=speechSynthesis.getVoices();return vs.find(v=>/Samantha|Serena|Martha|Moira|Tessa|Karen/i.test(v.name))||vs.find(v=>v.lang==='en-GB')||vs.find(v=>v.lang.startsWith('en'))}
+function speak(text,done){lastInstruction=text;if(!('speechSynthesis'in window)){done&&done();return}speechSynthesis.cancel();speechSynthesis.resume&&speechSynthesis.resume();const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=.9;u.pitch=1.04;const v=voice();if(v)u.voice=v;let ended=false;const finish=()=>{if(ended)return;ended=true;done&&done()};u.onend=finish;u.onerror=finish;speechSynthesis.speak(u);t(finish,9000)}
+function setScanner(v){scannerOn=v;scannerBtn.textContent=scannerHub.textContent='Scanner: '+(v?'On':'Off');localStorage.setItem('scannerOn',v?'1':'0');if(!v&&scannerTimer){clearTimeout(scannerTimer);scannerTimer=null}if(v&&current&&target)startScannerLoop()}
+setScanner(localStorage.getItem('scannerOn')==='1');scannerHub.onclick=()=>setScanner(!scannerOn);scannerBtn.onclick=()=>setScanner(!scannerOn);repeatBtn.onclick=()=>lastInstruction&&speak(lastInstruction);
+startBtn.addEventListener('click',async()=>{speak('Game ready.');await initAudio();startBtn.textContent='Sound ready';status.textContent='Ready. Double tap the middle of the wheel.'});
+function hub(){clearAll();speechSynthesis.cancel();current=null;busy=false;target=null;playerPos=50;score=0;wheel.style.display='grid';playfield.style.display='none';topButtons.style.display='none';hubButtons.style.display='flex';mode.textContent='Wheel hub';status.textContent='Double tap the middle to spin.';scoreEl.textContent='';bubble.hidden=true}
+$('#exit').onclick=hub;
+function spin(){if(current||busy||!ac)return;busy=true;play('wheel',{volume:.9});status.textContent='Wheel spinning';const pick=Math.floor(Math.random()*GAMES.length),g=GAMES[pick];wheel.style.transform=`rotate(${(6+pick/10)*360}deg)`;t(()=>{mode.textContent=g.name;status.textContent=g.name+'. '+g.instruction;speak(`${g.name}. ${g.instruction} Go!`,()=>begin(g))},5050)}
+function begin(g){clearAll();current=g;busy=false;score=popped=misses=0;playerPos=50;goal=0;luckyFound=0;pairProgress=0;wheel.style.display='none';playfield.style.display='block';topButtons.style.display='flex';hubButtons.style.display='none';scoreEl.textContent='Score: 0';if(g.id.includes('beep')||['fast','slow','reverse','landing','speedshift','quietgap'].includes(g.id))startBeep(g.id);else if(['highjump','longjump','jumpmarathon','jumpchain','fivejumps','quickjumps','steadyjump','jumpbuilder','smalljump','mysteryjump'].includes(g.id))startJump(g.id);else if(['memory','sequence','leftright','directionmemory','memoryfive','memorysix','opposites','repeatpair','centrememory','growingmemory'].includes(g.id))startMemory(g.id);else startBubble(g.id)}
+function finish(msg){clearAll();target=null;bubble.hidden=true;status.textContent=msg;play('door',{volume:.8});t(hub,2500)}
+function updateScore(){scoreEl.textContent=`Score: ${score}${goal?` of ${goal}`:''}${misses?` · Misses: ${misses}`:''}`}
+function targetPan(){if(!target)return 0;const diff=target.pos-playerPos;return Math.max(-1,Math.min(1,diff/45))}
+function targetDistance(){return target?Math.abs(target.pos-playerPos):100}
+function startScannerLoop(){if(scannerTimer){clearTimeout(scannerTimer);scannerTimer=null}if(!scannerOn||!current||!target)return;const distance=targetDistance();const interval=Math.round(150+Math.min(100,distance)*11);play('beep',{pan:targetPan(),rate:target.high?1.38:.92,volume:.58});scannerTimer=setTimeout(startScannerLoop,interval)}
+function spawn(highChance=.35){
+  if(scannerTimer){clearTimeout(scannerTimer);scannerTimer=null}
+  if(bubbleMoveTimer){clearTimeout(bubbleMoveTimer);bubbleMoveTimer=null}
+  let pos=Math.round(7+Math.random()*86);
+  if(current?.id==='leftlane')pos=Math.round(6+Math.random()*34);
+  if(current?.id==='rightlane')pos=Math.round(60+Math.random()*34);
+  if(current?.id==='centrepops')pos=Math.round(38+Math.random()*24);
+  target={pos,high:Math.random()<highChance,coin:false};
+  bubble.hidden=false;renderBubble();
+  if(['wander','storm','movingten','driftchallenge'].includes(current?.id))startBubbleDrift();
+  if(scannerOn)startScannerLoop();
+}
+function renderBubble(){if(!target)return;bubble.style.left=target.pos+'%';bubble.style.top=target.high?'28%':'57%'}
+function startBubbleDrift(){
+  const drift=()=>{if(!target||!current||!['wander','storm','movingten','driftchallenge'].includes(current.id))return;target.pos=Math.max(5,Math.min(95,target.pos+(Math.random()<.5?-1:1)*(5+Math.random()*8)));renderBubble();bubbleMoveTimer=setTimeout(drift,500+Math.random()*500)};
+  bubbleMoveTimer=setTimeout(drift,450);
+}
+function scan(){if(scannerOn&&target){if(scannerTimer){clearTimeout(scannerTimer);scannerTimer=null}startScannerLoop()}}
+function startBubble(id){
+  const settings={rush:[999,30000,.35],blitz:[50,0,.35],storm:[20,0,.55],sprint:[10,0,.3],survivor:[999,30000,.35],explorer:[20,0,.3],collector:[25,0,.35],climber:[15,0,.85],pairs:[20,0,.4],relax:[999,0,.35],precision:[12,0,.3],wander:[15,0,.4],risingrush:[15,0,.8],doublepop:[24,0,.4],endurance:[999,45000,.4],quickten:[10,0,.3],bubbleladder:[15,0,.25],zenwalk:[30,0,.3],leftlane:[18,0,.3],rightlane:[18,0,.3],centrepops:[18,0,.3],lowbubbles:[20,0,0],highbubbles:[15,0,1],movingten:[10,0,.45],bubblewave:[18,0,.4],bubbleminute:[999,60000,.4],tinytarget:[12,0,.35],farandnear:[16,0,.35],sidechange:[18,0,.35],popathon:[100,0,.35],calmten:[10,0,.25],speedtwenty:[20,25000,.35],driftchallenge:[15,0,.45],skyline:[18,0,.9],groundline:[20,0,0],onebyone:[20,0,.35],bubblejourney:[30,0,.4],coinchase:[15,0,.35],coinshower:[25,30000,.35],treasure:[999,0,.35],jackpot:[999,20000,.35],bigreward:[10,0,.35],coinblitz:[999,20000,.35],luckyfive:[999,0,.35],coinminute:[999,60000,.35],goldentwenty:[20,0,.35],hiddenjackpot:[15,0,.35],coinladder:[20,0,.35],quickcoins:[999,0,.35],mystery:[12,20000,.5],mysteryrush:[20,25000,.5],mysterycoins:[999,25000,.4]}[id]||[15,0,.35];
+  goal=settings[0]===999?0:settings[0];endAt=settings[1]?Date.now()+settings[1]:0;status.textContent=current.instruction;spawn(settings[2]);if(settings[1])countdown();
+}
+function countdown(){if(!current||!endAt)return;const left=Math.max(0,Math.ceil((endAt-Date.now())/1000));status.textContent=`${current.name}. ${left} seconds left.`;if(left<=0){finish(`Finished. Your score is ${score}.`);return}t(countdown,1000)}
+function popAttempt(side,jumped=false){
+  if(!target)return;
+  const closeEnough=targetDistance()<=13;
+  const correctHeight=!target.high||jumped;
+  if(!(closeEnough&&correctHeight))return;
+  play('pop',{pan:targetPan()});score++;popped++;
+  let coin=false;const id=current.id;
+  if(['coinshower','jackpot','coinblitz','coinminute'].includes(id))coin=true;
+  else if(id==='coinchase')coin=Math.random()<.3;
+  else if(id==='treasure')coin=popped===Math.floor(3+Math.random()*7);
+  else if(id==='bigreward'&&popped>=10)coin=true;
+  else if(id==='luckyfive')coin=Math.random()<.28;
+  else if(id==='goldentwenty')coin=Math.random()<.4;
+  else if(id==='hiddenjackpot')coin=popped===15;
+  else if(id==='coinladder')coin=Math.random()<Math.min(.85,.12+popped*.035);
+  else if(id==='quickcoins')coin=Math.random()<.34;
+  if(coin){if(id==='quickcoins')luckyFound++;play('cash',{volume:.9});score+=id==='jackpot'?1:3;if(id==='luckyfive')luckyFound++}
+  if(id==='doublepop'){pairProgress++;if(pairProgress%2===0)play('cash',{volume:.55})}
+  updateScore();
+  if(id==='treasure'&&coin){finish('Treasure found!');return}
+  if(id==='quickcoins'&&luckyFound>=3){finish(`You found three coins. Your score is ${score}.`);return}
+  if(id==='luckyfive'&&luckyFound>=5){finish(`You found five lucky bubbles. Your score is ${score}.`);return}
+  if(goal&&popped>=goal){if(id==='bigreward')play('cash',{volume:1});finish(`Completed. Your score is ${score}.`);return}
+  let highChance=id==='climber'||id==='bubbleladder'?Math.min(.95,.2+popped*.05):id==='risingrush'?.82:id==='storm'?.6:.35;
+  spawn(highChance)
+}
+function moveBy(delta){
+  if(!delta)return;
+  playerPos=Math.max(0,Math.min(100,playerPos+delta));
+  if(scannerOn&&target){if(scannerTimer){clearTimeout(scannerTimer);scannerTimer=null}startScannerLoop()}
+}
+function startJump(id){goal=id==='jumpmarathon'?10:id==='fivejumps'?5:0;status.textContent=current.instruction;score=0;updateScore();if(id==='landing'){return}if(id==='jumpchain')endAt=Date.now()+20000;if(id==='quickjumps')endAt=Date.now()+15000}
+function doJump(held=0){play('jump',{rate:1+Math.min(held,3000)/5000,volume:.9});const height=Math.max(1,Math.round(held/250));if(current.id==='highjump'||current.id==='longjump'){score=Math.max(score,height);updateScore();t(()=>finish(`Your jump score is ${score}.`),800)}else if(current.id==='jumpmarathon'){score++;updateScore();if(score>=10)finish('Ten jumps completed.');}else if(current.id==='jumpchain'||current.id==='quickjumps'){score++;updateScore();if(Date.now()>=endAt)finish(`Your jump score is ${score}.`);}
+  else if(current.id==='fivejumps'){score++;updateScore();if(score>=5)finish('Five jumps completed.');}
+  else if(current.id==='smalljump'){score=Math.max(1,10-height);updateScore();t(()=>finish(`Small jump score: ${score}.`),700);}
+  else if(current.id==='steadyjump'||current.id==='jumpbuilder'||current.id==='mysteryjump'){score++;updateScore();if(score>=3)finish(`Jump challenge completed. Score ${score}.`);}}
+function startBeep(id){status.textContent=current.instruction;let count=0,max=id==='beepcount'?5:id==='triplebeep'?14:12;function next(){if(!current)return;let gap;if(id==='fast')gap=700-count*48;else if(id==='slow'||id==='reverse')gap=120+count*55;else if(id==='randombeep')gap=150+Math.random()*650;else if(id==='doublebeep')gap=count===8?100:500;else if(id==='triplebeep')gap=count>=9&&count<=11?90:520;else if(id==='beepcount')gap=500;else if(id==='speedshift')gap=count<6?620:180;else if(id==='quietgap')gap=count===6?1200:260;else if(id==='beepburst')gap=count>=7&&count<=10?85:560;else if(id==='landing')gap=500;else gap=500;play('beep',{rate:1+count*.035,volume:.75});count++;if(count<max)t(next,Math.max(90,gap));else t(()=>finish('You missed the target.'),1200)}next();current.beepStart=Date.now();current.beepId=id;current.beepCount=()=>count}
+function beepTap(){const id=current.id,c=current.beepCount?current.beepCount():0;let good=id==='fast'?c>=10:id==='slow'||id==='reverse'?c>=10:id==='doublebeep'?c>=9:id==='triplebeep'?c>=12:id==='beepcount'?c>=5:id==='speedshift'?c>=7:id==='quietgap'?c>=7:id==='beepburst'?c>=11:id==='randombeep'?c>=7:id==='landing'?c>=6:false;score=good?10:Math.max(1,c);play(good?'cash':'pop',{volume:.9});finish(good?'Excellent timing!':`Timing score: ${score}.`)}
+function dirSound(d,delay=0){t(()=>play('beep',{pan:[-.9,0,.9][d],rate:1,volume:.85}),delay)}
+function startMemory(id){pattern=[];patternInput=[];patternRound=0;if(id==='leftright'){const d=Math.random()<.5?0:2;pattern=[d];dirSound(d);status.textContent='Remember the side, then tap it.';t(()=>status.textContent='Now tap the same side.',900);return}const len=id==='memorysix'?6:id==='memoryfive'?5:id==='directionmemory'?4:id==='repeatpair'?2:3;for(let i=0;i<len;i++)pattern.push(Math.floor(Math.random()*3));pattern.forEach((d,i)=>dirSound(d,i*520));t(()=>status.textContent='Now repeat the pattern.',len*520+300)}
+function memoryTap(side){patternInput.push(side);dirSound(side);const i=patternInput.length-1;const expected=current.id==='opposites'?(pattern[i]===0?2:pattern[i]===2?0:1):pattern[i];if(patternInput[i]!==expected){finish('That was not the pattern.');return}if(patternInput.length===pattern.length){score=pattern.length;play('cash');if(current.id==='sequence'&&pattern.length<7){pattern.push(Math.floor(Math.random()*3));patternInput=[];status.textContent='Next sequence.';pattern.forEach((d,i)=>dirSound(d,i*470));t(()=>status.textContent='Repeat it.',pattern.length*470+250)}else finish('Pattern completed.')}}
+function handleSide(side,isDouble=false,held=0){if(!current)return;if(['fast','slow','reverse','randombeep','doublebeep','triplebeep','beepcount','speedshift','quietgap','beepburst','landing'].includes(current.id)){beepTap();return}if(['memory','sequence','leftright','directionmemory','memoryfive','memorysix','opposites','repeatpair','centrememory','growingmemory'].includes(current.id)){memoryTap(side);return}if(['highjump','longjump','jumpmarathon','jumpchain','fivejumps','quickjumps','steadyjump','jumpbuilder','smalljump','mysteryjump'].includes(current.id)){if(isDouble)doJump(held);return}if(side!==1&&!isDouble){move(side);return}popAttempt(side,isDouble)}
+let gesture=null;
+playfield.addEventListener('pointerdown',e=>{
+  if(!current)return;
+  e.preventDefault();
+  playfield.setPointerCapture(e.pointerId);
+  gesture={id:e.pointerId,startX:e.clientX,lastX:e.clientX,startY:e.clientY,startTime:Date.now(),moved:false};
+});
+playfield.addEventListener('pointermove',e=>{
+  if(!gesture||gesture.id!==e.pointerId)return;
+  e.preventDefault();
+  const dx=e.clientX-gesture.lastX;
+  const totalX=e.clientX-gesture.startX;
+  const totalY=e.clientY-gesture.startY;
+  if(Math.abs(totalX)>8||Math.abs(totalY)>8)gesture.moved=true;
+  if(gesture.moved&&Math.abs(dx)>.2){
+    const direction=dx<0?-1:1;
+    startWalk(direction*.8);
+    updateWalkPan(direction*.8);
+    moveBy(dx/window.innerWidth*100);
+    status.textContent=direction<0?'Walking left.':'Walking right.';
+  }
+  gesture.lastX=e.clientX;
+});
+playfield.addEventListener('pointerup',e=>{
+  if(!gesture||gesture.id!==e.pointerId)return;
+  e.preventDefault();
+  const held=Date.now()-gesture.startTime;
+  const moved=gesture.moved;
+  const x=e.clientX/window.innerWidth;
+  const side=x<.333?0:x>.666?2:1;
+  stopWalk();
+  if(!moved){
+    const now=Date.now(),isDouble=now-lastTap<360;lastTap=now;
+    handleSide(side,isDouble,held);
+  }
+  gesture=null;
+});
+playfield.addEventListener('pointercancel',()=>{stopWalk();gesture=null});
+let wheelTap=0;wheel.addEventListener('pointerup',e=>{e.preventDefault();const n=Date.now();if(n-wheelTap<400)spin();wheelTap=n});
+document.addEventListener('touchstart',e=>{if(e.touches.length===2&&current){e.preventDefault();scan()}},{passive:false});
+window.addEventListener('beforeunload',()=>{if(music)music.pause()});
+</script>
+</body>
+</html>
